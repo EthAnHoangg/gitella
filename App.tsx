@@ -6,6 +6,7 @@ import { Button } from './components/Button';
 import { Card } from './components/Card';
 import { Input } from './components/Input';
 import { ReportView } from './components/ReportView';
+import { ChatWidget } from './components/ChatWidget';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
@@ -204,14 +205,17 @@ const App: React.FC = () => {
 
           </main>
         ) : (
-          /* Report View */
+          /* Report View + Chat */
           report && (
-            <ReportView 
-              report={report} 
-              commits={commits} 
-              repoName={parseRepoUrl(repoUrl)?.repo || 'Repo'} 
-              onReset={reset}
-            />
+            <>
+              <ReportView 
+                report={report} 
+                commits={commits} 
+                repoName={parseRepoUrl(repoUrl)?.repo || 'Repo'} 
+                onReset={reset}
+              />
+              <ChatWidget commits={commits} repoName={parseRepoUrl(repoUrl)?.repo || 'Repo'} />
+            </>
           )
         )}
       </div>

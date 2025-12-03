@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 import { Commit, ReportData } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -95,4 +95,31 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
   }
 
   return JSON.parse(text) as ReportData;
+};
+
+export const createRepoChat = (commits: Commit[], repoName: string): Chat => {
+  // Format commits for context
+  const commitLog = commits.map(c => 
+    `[${c.sha.substring(0, 7)}] ${c.commit.author.date} - ${c.commit.author.name}: ${c.commit.message}`
+  ).join('\n');
+
+  const systemInstruction = `
+    You are a specialized AI assistant for the GitHub repository "${repoName}".
+    You have access to the following commit history (newest to oldest):
+    
+    ${commitLog}
+    
+    Your goal is to answer user questions about what changed, who did what, and technical details based on these commits.
+    Style Guide:
+    - Keep the tone helpful, slightly technical but accessible (Neubrutalism/Gen Z vibe matches the app, but keep it readable).
+    - If a user asks about something not in the log, say you don't have that info.
+    - Be concise.
+  `;
+
+  return ai.chats.create({
+    model: 'gemini-3-pro-preview',
+    config: {
+      systemInstruction,
+    }
+  });
 };
