@@ -18,13 +18,13 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
   const prompt = `
     Analyze the following git commit log for the repository "${repoName}".
     
-    You are a Gen Z developer advocate/PM assistant. 
-    Your goal is to create a "Rizz Report" that summarizes the work done.
+    You are a Staff Software Engineer and Technical Lead. 
+    Your goal is to create a comprehensive, technical retrospective report.
     
     Style Guide:
-    - Use slightly informal, energetic, "Gen Z" internet slang where appropriate (e.g., "W", "L", "cooked", "based", "no cap").
-    - BUT keep the technical details accurate.
-    - "vibeScore" should be an integer from 0-100 based on productivity and feature velocity.
+    - **Summary & Lists**: Use strictly professional, technical, and data-driven language. Focus on architectural changes, performance improvements, and business value.
+    - **Productivity Score**: An integer (0-100) based on code velocity, complexity, impact, and consistency.
+    - **Strategic Recommendations**: Provide high-level, actionable advice for the engineering team. Focus on process improvements, architectural scalability, reducing technical debt, or improving testing coverage based on the patterns you see in the commits.
     
     Data to analyze:
     ${JSON.stringify(commitLog, null, 2)}
@@ -38,12 +38,12 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          summary: { type: Type.STRING, description: "A punchy, 2-3 sentence summary of the progress." },
-          vibeScore: { type: Type.INTEGER, description: "A score from 0 to 100 indicating how productive the period was." },
-          highlights: { 
-            type: Type.ARRAY, 
+          summary: { type: Type.STRING, description: "A professional, technical executive summary of the progress and engineering impact." },
+          productivityScore: { type: Type.INTEGER, description: "A score from 0 to 100 indicating technical productivity." },
+          highlights: {
+            type: Type.ARRAY,
             items: { type: Type.STRING },
-            description: "Top 3 big wins or key moments." 
+            description: "Top 3 technical achievements or architectural milestones."
           },
           features: {
             type: Type.ARRAY,
@@ -54,7 +54,7 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
                 description: { type: Type.STRING }
               }
             },
-            description: "List of new features added."
+            description: "List of new features implemented, described technically."
           },
           fixes: {
             type: Type.ARRAY,
@@ -65,7 +65,7 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
                 description: { type: Type.STRING }
               }
             },
-            description: "List of bugs squashed."
+            description: "List of bugs resolved, including technical root causes if implied."
           },
           debt: {
             type: Type.ARRAY,
@@ -76,15 +76,14 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
                 description: { type: Type.STRING }
               }
             },
-            description: "Refactoring, chores, or technical debt addressed."
+            description: "Refactoring, maintenance, dependencies, or technical debt addressed."
           },
-          nextSteps: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: "Inferred suggestions on what to focus on next based on the commits."
+          recommendations: {
+            type: Type.STRING,
+            description: "Actionable strategic advice for the engineering team."
           }
         },
-        required: ["summary", "vibeScore", "highlights", "features", "fixes", "debt", "nextSteps"]
+        required: ["summary", "productivityScore", "highlights", "features", "fixes", "debt", "recommendations"]
       }
     }
   });
@@ -99,27 +98,30 @@ export const generateReport = async (commits: Commit[], repoName: string): Promi
 
 export const createRepoChat = (commits: Commit[], repoName: string): Chat => {
   // Format commits for context
-  const commitLog = commits.map(c => 
+  const commitLog = commits.map(c =>
     `[${c.sha.substring(0, 7)}] ${c.commit.author.date} - ${c.commit.author.name}: ${c.commit.message}`
   ).join('\n');
 
   const systemInstruction = `
-    You are a specialized AI assistant for the GitHub repository "${repoName}".
+    You are an expert Technical Assistant for the GitHub repository "${repoName}".
     You have access to the following commit history (newest to oldest):
     
     ${commitLog}
     
     Your goal is to answer user questions about what changed, who did what, and technical details based on these commits.
+    You also have access to Google Search to find real-time information if needed (e.g. documentation, recent issues, library versions).
+    
     Style Guide:
-    - Keep the tone helpful, slightly technical but accessible (Neubrutalism/Gen Z vibe matches the app, but keep it readable).
-    - If a user asks about something not in the log, say you don't have that info.
-    - Be concise.
+    - **Tone**: Professional, precise, and helpful. Act like a Senior Engineer explaining the codebase.
+    - **Accuracy**: Be factually accurate based on the commit logs. If a user asks about something not in the log, state that you don't have that info or use Google Search if relevant.
+    - **Formatting**: Use Markdown. ALWAYS use code blocks (\`\`\`) for code snippets, logs, or file paths. Use bold (**text**) for emphasis. Use lists for bullet points.
   `;
 
   return ai.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-2.5-flash',
     config: {
       systemInstruction,
+      tools: [{ googleSearch: {} }]
     }
   });
 };

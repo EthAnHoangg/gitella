@@ -1,4 +1,5 @@
-import { Commit } from '../types';
+
+import { Commit, TrendingRepo } from '../types';
 
 export const parseRepoUrl = (url: string): { owner: string; repo: string } | null => {
   try {
@@ -50,4 +51,30 @@ export const fetchCommits = async (
 
   const data = await response.json();
   return data as Commit[];
+};
+
+export const fetchTrendingRepos = async (): Promise<TrendingRepo[]> => {
+  // Simulate "Trending" by fetching repos created in the last 10 days with the most stars
+  const date = new Date();
+  date.setDate(date.getDate() - 10);
+  const dateString = date.toISOString().split('T')[0];
+
+  const response = await fetch(`https://api.github.com/search/repositories?q=created:>${dateString}&sort=stars&order=desc&per_page=6`, {
+    headers: {
+      'Accept': 'application/vnd.github.v3+json',
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch trending repos");
+  }
+
+  const data = await response.json();
+  return data.items.map((item: any) => ({
+    full_name: item.full_name,
+    html_url: item.html_url,
+    description: item.description,
+    stargazers_count: item.stargazers_count,
+    language: item.language
+  })) as TrendingRepo[];
 };

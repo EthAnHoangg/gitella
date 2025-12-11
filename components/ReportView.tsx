@@ -1,13 +1,13 @@
 import React from 'react';
 import { ReportData, Commit } from '../types';
 import { Card } from './Card';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
 
 interface ReportViewProps {
@@ -17,71 +17,127 @@ interface ReportViewProps {
   onReset: () => void;
 }
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#2B1810] p-4 border-2 border-white shadow-[8px_8px_0px_0px_#E20613] z-50">
+        <p className="text-[#FFC107] font-black uppercase text-sm mb-2 border-b-2 border-white/20 pb-1">
+          {label}
+        </p>
+        <p className="text-white font-mono font-bold text-xl">
+          {payload[0].value} <span className="text-sm text-gray-400 font-sans font-normal uppercase">Commits</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const ReportView: React.FC<ReportViewProps> = ({ report, commits, repoName, onReset }) => {
-  // Process commits for the chart (commits per day)
   const chartData = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    commits.forEach(c => {
+    // Initialize chart with 0s for the range if needed, but for now just mapping commits
+    // Sort commits by date first
+    const sortedCommits = [...commits].sort((a, b) => 
+      new Date(a.commit.author.date).getTime() - new Date(b.commit.author.date).getTime()
+    );
+
+    sortedCommits.forEach(c => {
       const date = new Date(c.commit.author.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       counts[date] = (counts[date] || 0) + 1;
     });
+    
     return Object.entries(counts).map(([date, count]) => ({ date, count }));
   }, [commits]);
 
+  const copyReportToClipboard = () => {
+    const text = `
+gitella Report for ${repoName}
+----------------------------------------
+PRODUCTIVITY SCORE: ${report.productivityScore}/100
+
+SUMMARY
+${report.summary}
+
+HIGHLIGHTS
+${report.highlights.map(h => `- ${h}`).join('\n')}
+
+FEATURES
+${report.features.map(f => `[+] ${f.title}: ${f.description}`).join('\n')}
+
+FIXES
+${report.fixes.map(f => `[x] ${f.title}: ${f.description}`).join('\n')}
+
+DEBT
+${report.debt.map(d => `[-] ${d.title}: ${d.description}`).join('\n')}
+
+STRATEGIC RECOMMENDATIONS
+${report.recommendations}
+    `.trim();
+
+    navigator.clipboard.writeText(text);
+    alert('Report copied to clipboard!');
+  };
+
   return (
-    <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] text-black">
+    <div className="space-y-8 animate-[fadeIn_0.5s_ease-out] text-[#2B1810] relative">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-4xl font-black uppercase italic tracking-tighter text-black">
-            Report: {repoName}
-          </h2>
-          <p className="text-black font-medium mt-1">
-            Processed {commits.length} commits. No cap.
-          </p>
+      <div className="bg-[#2B1810] text-[#FFC107] border-4 border-[#2B1810] p-6 shadow-[8px_8px_0px_0px_rgba(226,6,19,1)] transform -rotate-1">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">
+              {repoName}
+            </h2>
+            <p className="text-xl font-mono font-bold mt-2 text-[#FFC107]">
+              /// SCOOPED {commits.length} COMMITS ///
+            </p>
+          </div>
+          <div className="flex gap-4">
+            <button
+              onClick={copyReportToClipboard}
+              className="bg-[#FFC107] text-[#2B1810] font-black text-xl px-6 py-2 border-4 border-[#2B1810] shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase"
+            >
+              Copy Report
+            </button>
+            <button
+              onClick={onReset}
+              className="bg-[#E20613] text-white font-black text-xl px-6 py-2 border-4 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase"
+            >
+              Analyze Another ↻
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={onReset}
-          className="text-sm font-bold underline hover:bg-black hover:text-white px-2 py-1 transition-colors text-black"
-        >
-          ← ANALYZE ANOTHER
-        </button>
       </div>
 
-      {/* Vibe Score & Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1 flex flex-col justify-between items-center text-center text-black" color="bg-[#FFD6FF]">
+      {/* Flavor Profile & Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <Card className="md:col-span-1 flex flex-col justify-between items-center text-center" color="bg-[#FDFBF7]" rotate={true}>
           <div className="w-full">
-            <h3 className="text-xl font-bold uppercase mb-2">Vibe Score</h3>
-            {/* Flexbox layout to fix overlap */}
-            <div className="flex flex-row items-baseline justify-center gap-1">
-              <span className="text-7xl lg:text-8xl font-black text-black tracking-tighter">{report.vibeScore}</span>
-              <span className="text-2xl font-bold text-black">/100</span>
+            <h3 className="text-2xl font-black uppercase border-b-4 border-[#2B1810] pb-2 mb-4 text-[#2B1810]">Productivity Score</h3>
+            <div className="relative inline-block">
+              <span className="text-9xl font-black text-[#E20613] tracking-tighter relative z-10">{report.productivityScore}</span>
+              <span className="absolute top-2 left-2 text-9xl font-black text-[#2B1810] -z-0 blur-[1px] opacity-20">{report.productivityScore}</span>
             </div>
-            <div className="mt-2 flex justify-center">
-              <span className="font-bold text-sm bg-black text-white px-2 py-1 rotate-[-2deg] inline-block">
-                {report.vibeScore > 80 ? "ABSOLUTE FIRE 🔥" : report.vibeScore > 50 ? "COOKING 🍳" : "NEEDS WORK 💀"}
+
+            <div className="mt-4 transform rotate-2">
+              <span className="font-black text-xl bg-[#2B1810] text-[#FFC107] px-4 py-2 border-2 border-white shadow-[4px_4px_0px_0px_rgba(226,6,19,1)]">
+                {report.productivityScore > 80 ? "HIGH VELOCITY 🚀" : report.productivityScore > 50 ? "STEADY PROGRESS 📈" : "NEEDS IMPROVEMENT ⚠️"}
               </span>
             </div>
-          </div>
-          
-          <div className="mt-6 border-t-2 border-black pt-3 w-full text-left">
-            <p className="text-[10px] font-bold uppercase mb-1">WHAT DOES THIS MEAN?</p>
-            <p className="text-xs font-medium text-black leading-tight">
-              AI-calculated score based on commit velocity, code volume, and shipping momentum.
-            </p>
+            <div className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-t-2 border-gray-200 pt-2">
+              AI-CALCULATED BASED ON VELOCITY, CODE VOLUME, AND SHIPPING MOMENTUM
+            </div>
           </div>
         </Card>
 
-        <Card className="md:col-span-2 text-black flex flex-col" title="The Vibe Check (TL;DR)" color="bg-white">
-          <p className="text-lg leading-relaxed font-medium text-black flex-grow">
-            {report.summary}
+        <Card className="md:col-span-2 flex flex-col" title="Executive Summary" color="bg-white" rotate={true}>
+          <p className="text-xl md:text-2xl leading-normal font-bold text-[#2B1810] flex-grow font-mono">
+            "{report.summary}"
           </p>
-          <div className="mt-6">
-            <h4 className="font-bold text-sm uppercase mb-2">Highlights:</h4>
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-8">
+            <div className="flex flex-wrap gap-3">
               {report.highlights.map((h, i) => (
-                <span key={i} className="bg-[#FDFFB6] text-black border-2 border-black px-3 py-1 font-bold text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <span key={i} className="bg-[#FFC107] text-[#2B1810] border-4 border-[#2B1810] px-4 py-2 font-black text-lg shadow-[4px_4px_0px_0px_rgba(43,24,16,1)] hover:-translate-y-1 transition-transform cursor-default">
                   {h}
                 </span>
               ))}
@@ -91,136 +147,112 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, commits, repoNam
       </div>
 
       {/* Breakdown Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Features */}
-        <Card title="Big Ws (Features)" color="bg-[#B8FF9F]" className="text-black">
-          {report.features.length === 0 ? (
-            <p className="opacity-50 italic text-black">No major features detected.</p>
-          ) : (
-            <ul className="space-y-4">
-              {report.features.map((item, idx) => (
-                <li key={idx} className="bg-white/50 border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                  <div className="font-black text-sm uppercase text-black">{item.title}</div>
-                  <div className="text-sm mt-1 leading-snug text-black">{item.description}</div>
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <Card title="Key Features" color="bg-[#CAFFBF]">
+          <ul className="space-y-4">
+            {report.features.map((item, idx) => (
+              <li key={idx} className="bg-white border-4 border-[#2B1810] p-4 shadow-[4px_4px_0px_0px_rgba(43,24,16,1)] hover:bg-[#2B1810] hover:text-[#CAFFBF] transition-colors group">
+                <div className="font-black text-lg uppercase group-hover:text-[#CAFFBF] break-words">{item.title}</div>
+                <div className="text-base font-bold mt-1 leading-snug opacity-80 group-hover:opacity-100 break-words">{item.description}</div>
+              </li>
+            ))}
+          </ul>
         </Card>
 
-        {/* Fixes */}
-        <Card title="Squashed Bugs 🐛" color="bg-[#FFADAD]" className="text-black">
-           {report.fixes.length === 0 ? (
-            <p className="opacity-50 italic text-black">Bug free code? Sus.</p>
-          ) : (
-            <ul className="space-y-4">
-              {report.fixes.map((item, idx) => (
-                <li key={idx} className="bg-white/50 border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                  <div className="font-black text-sm uppercase text-black">{item.title}</div>
-                  <div className="text-sm mt-1 leading-snug text-black">{item.description}</div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <Card title="Bug Fixes" color="bg-[#FFADAD]">
+          <ul className="space-y-4">
+            {report.fixes.map((item, idx) => (
+              <li key={idx} className="bg-white border-4 border-[#2B1810] p-4 shadow-[4px_4px_0px_0px_rgba(43,24,16,1)] hover:bg-[#2B1810] hover:text-[#FFADAD] transition-colors group">
+                <div className="font-black text-lg uppercase group-hover:text-[#FFADAD] break-words">{item.title}</div>
+                <div className="text-base font-bold mt-1 leading-snug opacity-80 group-hover:opacity-100 break-words">{item.description}</div>
+              </li>
+            ))}
+          </ul>
         </Card>
 
-        {/* Debt/Chores */}
-        <Card title="Nerd Stuff (Chores)" color="bg-[#A0C4FF]" className="text-black">
-           {report.debt.length === 0 ? (
-            <p className="opacity-50 italic text-black">All glory, no cleanup.</p>
-          ) : (
-            <ul className="space-y-4">
-              {report.debt.map((item, idx) => (
-                <li key={idx} className="bg-white/50 border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                  <div className="font-black text-sm uppercase text-black">{item.title}</div>
-                  <div className="text-sm mt-1 leading-snug text-black">{item.description}</div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <Card title="Technical Debt" color="bg-[#A0C4FF]">
+          <ul className="space-y-4">
+            {report.debt.map((item, idx) => (
+              <li key={idx} className="bg-white border-4 border-[#2B1810] p-4 shadow-[4px_4px_0px_0px_rgba(43,24,16,1)] hover:bg-[#2B1810] hover:text-[#A0C4FF] transition-colors group">
+                <div className="font-black text-lg uppercase group-hover:text-[#A0C4FF] break-words">{item.title}</div>
+                <div className="text-base font-bold mt-1 leading-snug opacity-80 group-hover:opacity-100 break-words">{item.description}</div>
+              </li>
+            ))}
+          </ul>
         </Card>
       </div>
 
-      {/* Activity Chart & Next Steps */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Grindset Visualization" color="bg-white" className="text-black">
-          <div className="h-64 w-full">
+      {/* Chart & Recommendations */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card title="Daily Activity" color="bg-white">
+          <div className="h-80 w-full bg-[#FDFBF7] border-4 border-[#2B1810] p-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <XAxis 
-                  dataKey="date" 
-                  tick={{fontFamily: 'Space Grotesk', fontSize: 12, fill: 'black'}} 
-                  axisLine={{stroke: 'black', strokeWidth: 2}}
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontFamily: 'Space Grotesk', fontSize: 12, fill: '#2B1810', fontWeight: 'bold' }}
+                  axisLine={{ stroke: '#2B1810', strokeWidth: 4 }}
                   tickLine={false}
                 />
-                <YAxis 
-                  hide 
+                <Tooltip
+                  cursor={{ fill: '#FFC107', opacity: 0.5 }}
+                  content={<CustomTooltip />}
                 />
-                <Tooltip 
-                  cursor={{fill: '#f0f0f0'}}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    color: '#000',
-                    border: '2px solid black',
-                    boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)',
-                    borderRadius: '0px',
-                    fontFamily: 'Space Grotesk',
-                    fontWeight: 'bold'
-                  }}
-                  itemStyle={{ color: '#000' }}
-                  labelStyle={{ color: '#000' }}
-                />
-                <Bar dataKey="count" fill="#000" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="count" fill="#2B1810" radius={[0, 0, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card title="The Prophecy (Next Steps)" color="bg-[#CAFFBF]" className="text-black">
-          <div className="flex flex-col gap-3">
-            {report.nextSteps.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-3">
-                <div className="bg-black text-white w-6 h-6 flex-shrink-0 flex items-center justify-center font-bold text-xs mt-1">
-                  {idx + 1}
-                </div>
-                <p className="font-medium leading-tight text-black">{step}</p>
-              </div>
-            ))}
+        <Card title="Strategic Recommendations 🎯" color="#D0D1FF" rotate={true}>
+          <div className="bg-white border-4 border-[#2B1810] p-6 shadow-[4px_4px_0px_0px_rgba(43,24,16,1)] h-full">
+            <p className="text-xl font-bold font-mono leading-relaxed whitespace-pre-wrap text-[#2B1810]">
+              {report.recommendations}
+            </p>
           </div>
         </Card>
       </div>
 
-      {/* Raw Receipts Section */}
-      <div className="pb-20">
-        <Card title="Raw Receipts (Commits)" color="bg-white" className="text-black">
-          <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-            <ul className="space-y-3">
-              {commits.map((c) => (
-                <li key={c.sha} className="border-b-2 border-dashed border-gray-300 pb-2 last:border-0 hover:bg-gray-50 transition-colors p-2">
-                  <div className="flex justify-between items-start flex-wrap gap-2 mb-1">
-                    <a 
-                      href={c.html_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="font-bold font-mono text-xs bg-black text-white px-1 hover:bg-[#B8FF9F] hover:text-black transition-colors"
-                    >
-                      {c.sha.substring(0, 7)}
-                    </a>
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+      <Card title="Raw Receipts (Commits)" color="bg-white" className="text-[#2B1810]">
+        <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+          <ul className="space-y-4">
+            {commits.map((c) => {
+              const lines = c.commit.message.split('\n');
+              const subject = lines[0];
+              const body = lines.slice(1).join('\n').trim();
+
+              return (
+                <li key={c.sha} className="border-4 border-[#2B1810] p-4 hover:bg-[#FDFBF7] transition-colors relative">
+                  <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={c.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-black font-mono text-sm bg-[#2B1810] text-white px-2 py-1 hover:bg-[#E20613] transition-colors"
+                      >
+                        {c.sha.substring(0, 7)}
+                      </a>
+                      <span className="font-bold text-sm text-[#2B1810]">{c.commit.author.name}</span>
+                    </div>
+                    <span className="text-xs font-black text-[#2B1810] uppercase tracking-wide bg-[#FFC107] px-2 py-1 border-2 border-[#2B1810]">
                       {new Date(c.commit.author.date).toLocaleString()}
                     </span>
                   </div>
-                  <p className="font-bold text-sm leading-snug">{c.commit.message}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                     <div className="w-2 h-2 bg-green-400 rounded-full border border-black"></div>
-                     <p className="text-xs font-medium text-gray-600">{c.commit.author.name}</p>
-                  </div>
+                  
+                  <p className="font-black text-lg leading-tight text-[#2B1810] mb-2">{subject}</p>
+                  
+                  {body && (
+                    <pre className="bg-[#F0F0F0] border-2 border-[#2B1810] p-3 text-sm font-mono whitespace-pre-wrap text-[#2B1810]">
+                      {body}
+                    </pre>
+                  )}
                 </li>
-              ))}
-            </ul>
-          </div>
-        </Card>
-      </div>
+              );
+            })}
+          </ul>
+        </div>
+      </Card>
     </div>
   );
 };

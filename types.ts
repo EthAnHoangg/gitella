@@ -1,3 +1,4 @@
+
 export interface Commit {
   sha: string;
   commit: {
@@ -12,12 +13,12 @@ export interface Commit {
 
 export interface ReportData {
   summary: string;
-  vibeScore: number; // 0 to 100
+  productivityScore: number; // 0 to 100
   highlights: string[];
   features: { title: string; description: string }[];
   fixes: { title: string; description: string }[];
   debt: { title: string; description: string }[];
-  nextSteps: string[];
+  recommendations: string;
 }
 
 export interface DateRange {
@@ -37,4 +38,13 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   text: string;
+  sources?: { title: string; uri: string }[];
+}
+
+export interface TrendingRepo {
+  full_name: string;
+  html_url: string;
+  description: string;
+  stargazers_count: number;
+  language: string;
 }
