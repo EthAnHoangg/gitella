@@ -1,5 +1,5 @@
 {
   "name": "Gitella",
-  "description": "The hazelnut spread of GitHub analytics. Turn dry commits into smooth, tasty reports.",
+  "description": "Search and analyze any GitHub repository. Turn dry commits into smooth, tasty reports with AI.",
   "requestFramePermissions": []
 }

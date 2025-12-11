@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { AppStatus, Commit, ReportData, TrendingRepo, SearchResult } from './types';
 import { parseRepoUrl, fetchCommits, fetchTrendingRepos, searchRepositories } from './services/githubService';
@@ -9,6 +7,7 @@ import { Card } from './components/Card';
 import { Input } from './components/Input';
 import { ReportView } from './components/ReportView';
 import { ChatWidget } from './components/ChatWidget';
+import { ChocolateDrips } from './components/ChocolateDrips';
 
 const CHEF_SPECIALS = [
   { name: 'Transformers', url: 'https://github.com/huggingface/transformers', desc: 'State-of-the-art ML' },
@@ -122,10 +121,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSearchResultSelect = async (repo: SearchResult) => {
+  const handleSearchResultSelect = (repo: SearchResult) => {
     setRepoInput(repo.html_url);
     setShowSearchModal(false);
-    await processRepo(repo.html_url);
+    // Removed processRepo call to allow user to adjust settings first
   };
 
   const handleSpecialSelect = (url: string) => {
@@ -197,21 +196,8 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Dripping Chocolate Header Decoration */}
-      <div className="fixed top-0 left-0 w-full h-16 bg-[#2B1810] z-0" style={{ filter: 'url(#goo)' }}>
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute top-0 bg-[#2B1810] rounded-b-full animate-wiggle"
-            style={{
-              left: `${i * 5}%`,
-              width: '60px',
-              height: `${Math.random() * 80 + 40}px`,
-              animationDuration: `${Math.random() * 2 + 1}s`
-            }}
-          />
-        ))}
-      </div>
+      {/* Dripping Chocolate Header Decoration (Memoized to prevent jitter) */}
+      <ChocolateDrips />
 
       {/* SEARCH RESULTS MODAL */}
       {showSearchModal && (
