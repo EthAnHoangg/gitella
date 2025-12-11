@@ -1,4 +1,5 @@
 
+
 export interface Commit {
   sha: string;
   commit: {
@@ -47,4 +48,16 @@ export interface TrendingRepo {
   description: string;
   stargazers_count: number;
   language: string;
+}
+
+export interface SearchResult {
+  id: number;
+  full_name: string;
+  html_url: string;
+  description: string;
+  stargazers_count: number;
+  language: string;
+  owner: {
+    avatar_url: string;
+  };
 }

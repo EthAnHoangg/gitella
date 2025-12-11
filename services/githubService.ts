@@ -1,5 +1,6 @@
 
-import { Commit, TrendingRepo } from '../types';
+
+import { Commit, TrendingRepo, SearchResult } from '../types';
 
 export const parseRepoUrl = (url: string): { owner: string; repo: string } | null => {
   try {
@@ -77,4 +78,25 @@ export const fetchTrendingRepos = async (): Promise<TrendingRepo[]> => {
     stargazers_count: item.stargazers_count,
     language: item.language
   })) as TrendingRepo[];
+};
+
+export const searchRepositories = async (query: string, token?: string): Promise<SearchResult[]> => {
+  const headers: Record<string, string> = {
+    'Accept': 'application/vnd.github.v3+json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `token ${token}`;
+  }
+
+  const response = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=5`, {
+    headers
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to search repositories");
+  }
+
+  const data = await response.json();
+  return data.items as SearchResult[];
 };

@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
-import { AppStatus, Commit, ReportData, TrendingRepo } from './types';
-import { parseRepoUrl, fetchCommits, fetchTrendingRepos } from './services/githubService';
+import { AppStatus, Commit, ReportData, TrendingRepo, SearchResult } from './types';
+import { parseRepoUrl, fetchCommits, fetchTrendingRepos, searchRepositories } from './services/githubService';
 import { generateReport } from './services/geminiService';
 import { Button } from './components/Button';
 import { Card } from './components/Card';
@@ -23,7 +24,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Inputs
-  const [repoUrl, setRepoUrl] = useState('https://github.com/facebook/react');
+  const [repoInput, setRepoInput] = useState('https://github.com/facebook/react');
   const [token, setToken] = useState('');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -36,17 +37,24 @@ const App: React.FC = () => {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [report, setReport] = useState<ReportData | null>(null);
 
-  // Trending
+  // Trending & Search
   const [pantryMode, setPantryMode] = useState<'favorites' | 'trending'>('favorites');
   const [trendingRepos, setTrendingRepos] = useState<TrendingRepo[]>([]);
   const [isLoadingTrending, setIsLoadingTrending] = useState(false);
+  
+  // Search Modal State
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleGenerate = async () => {
+  // Core processing function (extracted for reuse)
+  const processRepo = async (url: string) => {
     setError(null);
-    const repoDetails = parseRepoUrl(repoUrl);
+    const repoDetails = parseRepoUrl(url);
 
     if (!repoDetails) {
       setError("Invalid GitHub URL. Must be like 'https://github.com/owner/repo'");
+      setStatus(AppStatus.ERROR);
       return;
     }
 
@@ -79,8 +87,49 @@ const App: React.FC = () => {
     }
   };
 
+  const handleInputSubmit = async () => {
+    setError(null);
+    
+    // Check if input is a valid URL
+    const repoDetails = parseRepoUrl(repoInput);
+
+    if (repoDetails) {
+      // It's a URL, proceed normally
+      await processRepo(repoInput);
+    } else {
+      // It's not a URL, treat as search query
+      if (!repoInput.trim()) {
+        setError("Please enter a URL or a search term.");
+        return;
+      }
+      
+      try {
+        setIsSearching(true);
+        setStatus(AppStatus.IDLE); // Stay in idle/search mode
+        const results = await searchRepositories(repoInput, token || undefined);
+        
+        if (results.length === 0) {
+          setError(`No repositories found for "${repoInput}". Try a valid URL?`);
+        } else {
+          setSearchResults(results);
+          setShowSearchModal(true);
+        }
+      } catch (e: any) {
+        setError("Failed to search GitHub. Try a direct URL.");
+      } finally {
+        setIsSearching(false);
+      }
+    }
+  };
+
+  const handleSearchResultSelect = async (repo: SearchResult) => {
+    setRepoInput(repo.html_url);
+    setShowSearchModal(false);
+    await processRepo(repo.html_url);
+  };
+
   const handleSpecialSelect = (url: string) => {
-    setRepoUrl(url);
+    setRepoInput(url);
     // Reset status to IDLE if it was ERROR to clear the error message
     if (status === AppStatus.ERROR) {
       setStatus(AppStatus.IDLE);
@@ -103,7 +152,6 @@ const App: React.FC = () => {
         setTrendingRepos(repos);
       } catch (e) {
         console.error(e);
-        // Silently fail or show small alert, for now just log
       } finally {
         setIsLoadingTrending(false);
       }
@@ -165,6 +213,75 @@ const App: React.FC = () => {
         ))}
       </div>
 
+      {/* SEARCH RESULTS MODAL */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          {/* Main Modal Card - Removed rotation for clarity, fixed shadow */}
+          <div className="bg-[#FDFBF7] border-4 border-[#2B1810] w-full max-w-2xl max-h-[85vh] flex flex-col shadow-[12px_12px_0px_0px_#2B1810] relative">
+            
+            {/* Header */}
+            <div className="bg-[#2B1810] text-[#FFC107] p-5 flex justify-between items-center border-b-4 border-[#2B1810] select-none">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🥣</span>
+                <h3 className="text-2xl font-black uppercase tracking-tighter">Found Ingredients</h3>
+              </div>
+              <button 
+                onClick={() => setShowSearchModal(false)} 
+                className="text-[#FFC107] hover:text-white transition-colors bg-transparent border-none p-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-6 overflow-y-auto custom-scrollbar bg-[#FDFBF7] flex-1">
+              <p className="mb-6 font-bold text-xl text-[#2B1810]">
+                Select the correct repo for <span className="bg-[#FFC107] px-2 py-1 border-2 border-[#2B1810] shadow-[2px_2px_0px_0px_#2B1810] mx-1">{repoInput}</span>:
+              </p>
+              
+              <div className="grid gap-4">
+                {searchResults.map((repo) => (
+                  <button
+                    key={repo.id}
+                    onClick={() => handleSearchResultSelect(repo)}
+                    className="group relative w-full flex flex-col text-left p-5 border-4 border-[#2B1810] bg-white transition-all hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_#E20613]"
+                  >
+                    <div className="flex justify-between w-full items-start gap-4 mb-2">
+                      <span className="font-black text-xl text-[#2B1810] uppercase break-all group-hover:text-[#E20613] transition-colors">
+                        {repo.full_name}
+                      </span>
+                      <span className="shrink-0 bg-[#2B1810] text-white text-xs px-3 py-1 font-bold rounded-full border-2 border-[#2B1810] group-hover:bg-[#FFC107] group-hover:text-[#2B1810] transition-colors">
+                        ★ {(repo.stargazers_count >= 1000 ? (repo.stargazers_count / 1000).toFixed(1) + 'k' : repo.stargazers_count)}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm font-bold text-gray-600 line-clamp-2 mb-3 font-mono">
+                      {repo.description || "No description available."}
+                    </p>
+                    
+                    <div className="flex items-center gap-3 mt-auto">
+                      {repo.language && (
+                        <span className="text-xs font-black uppercase tracking-wider bg-gray-100 px-2 py-1 border-2 border-[#2B1810]">
+                          {repo.language}
+                        </span>
+                      )}
+                      <span className="text-xs font-bold text-[#E20613] opacity-0 group-hover:opacity-100 transition-opacity uppercase">
+                        Select Recipe ➤
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Footer gradient fade if needed, or just clean bottom */}
+            <div className="h-4 bg-transparent"></div>
+          </div>
+        </div>
+      )}
+
 
       <div className="max-w-7xl mx-auto relative z-10 mt-12">
 
@@ -197,10 +314,11 @@ const App: React.FC = () => {
               <Card title="Ingredients (Repo)" className="bg-white z-10 relative transform rotate-1 border-[#2B1810]">
                 <div className="flex flex-col gap-6">
                   <Input
-                    label="GitHub Repo URL"
-                    placeholder="https://github.com/owner/repo"
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
+                    label="Repo URL or Name"
+                    placeholder="e.g. 'Deepseek' or https://github.com/..."
+                    value={repoInput}
+                    onChange={(e) => setRepoInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleInputSubmit()}
                     className="border-[#2B1810] focus:bg-[#FFE4E1]"
                   />
 
@@ -236,11 +354,12 @@ const App: React.FC = () => {
                   </div>
 
                   <Button
-                    onClick={handleGenerate}
-                    isLoading={status === AppStatus.FETCHING_GITHUB || status === AppStatus.GENERATING_REPORT}
+                    onClick={handleInputSubmit}
+                    isLoading={status === AppStatus.FETCHING_GITHUB || status === AppStatus.GENERATING_REPORT || isSearching}
                     className="mt-4 w-full text-2xl bg-[#E20613] text-white hover:bg-[#C40511] border-[#2B1810]"
                   >
-                    {status === AppStatus.FETCHING_GITHUB ? 'SCOOPING DATA...' :
+                    {isSearching ? 'SEARCHING...' :
+                      status === AppStatus.FETCHING_GITHUB ? 'SCOOPING DATA...' :
                       status === AppStatus.GENERATING_REPORT ? 'BLENDING INSIGHTS...' :
                         'GET THE SCOOP 🥄'}
                   </Button>
@@ -301,7 +420,7 @@ const App: React.FC = () => {
                         Ready for<br />
                         <span className="text-[#E20613]">THE SCOOP?</span>
                       </h2>
-                      <p className="font-bold text-lg text-gray-600">Enter a URL or pick a favorite below.</p>
+                      <p className="font-bold text-lg text-gray-600">Enter a URL or just type a name (e.g. "Deepseek") below.</p>
                     </div>
                   </div>
 
@@ -380,10 +499,10 @@ const App: React.FC = () => {
               <ReportView
                 report={report}
                 commits={commits}
-                repoName={parseRepoUrl(repoUrl)?.repo || 'Repo'}
+                repoName={parseRepoUrl(repoInput)?.repo || 'Repo'}
                 onReset={reset}
               />
-              <ChatWidget commits={commits} repoName={parseRepoUrl(repoUrl)?.repo || 'Repo'} />
+              <ChatWidget commits={commits} repoName={parseRepoUrl(repoInput)?.repo || 'Repo'} />
             </>
           )
         )}
